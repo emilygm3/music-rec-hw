@@ -1,0 +1,25 @@
+name,description,query,id,parentId,isFolder
+load_data,,"LOAD CSV WITH HEADERS FROM 'file:///genre_3000.csv' AS row
+CREATE (:Track {
+    track_name: row.track_name,
+    speechiness: toFloat(row.speechiness),
+    acousticness: toFloat(row.acousticness),
+    loudness: toFloat(row.loudness),
+    energy: toFloat(row.energy),
+    danceability: toFloat(row.danceability)
+});",0,,false
+make graph project,,"CALL gds.graph.project(
+  'tracksGraph',
+  'Track',
+  '*',
+  {
+    nodeProperties: ['speechiness', 'acousticness', 'loudness', 'energy', 'danceability']
+  }
+);",1,,false
+similarity scores,,"CALL gds.knn.write('tracksGraph', {
+  nodeProperties: ['speechiness', 'acousticness', 'loudness', 'energy', 'danceability'],
+  topK: 5,
+  similarityCutoff: 0.6,
+  writerelationshipType: 'SIMILAR',
+  writeProperty: 'score'
+});",2,,false
