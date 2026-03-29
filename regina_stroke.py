@@ -10,6 +10,17 @@ df = pd.read_csv(FILE)
 random_2000 = df.sample(n=2000, random_state=42)
 random_2000.to_csv("random_2000.csv", index=False)
 
+# Only Regina Spektor or The Strokes
+df_only_regina_strokes = df[df['artists'].isin(['Regina Spektor', 'The Strokes'])]
+# Everyone except Regina Spektor and The Strokes
+df_no_regina_strokes = df[~df['artists'].isin(['Regina Spektor', 'The Strokes'])]
+
+base_random_2000 = df_no_regina_strokes.sample(n=1945, random_state=42)
+random_2000_regina_strokes = pd.concat([df_only_regina_strokes, base_random_2000], ignore_index=True)
+random_2000_regina_strokes.to_csv("random_2000_regina_strokes.csv", index=False)
+
+
+
 
 # for col in df.columns:
 #     print(f"\n--- {col} ---")
