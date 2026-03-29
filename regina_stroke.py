@@ -7,6 +7,10 @@ FILE = "spotify.csv"
 
 df = pd.read_csv(FILE)
 
+random_2000 = df.sample(n=2000, random_state=42)
+random_2000.to_csv("random_2000.csv", index=False)
+
+
 # for col in df.columns:
 #     print(f"\n--- {col} ---")
 #     print(df[col].value_counts())
