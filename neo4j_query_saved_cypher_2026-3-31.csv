@@ -1,0 +1,82 @@
+name,description,query,id,parentId,isFolder
+restart database,,"// Delete all relationships
+:auto MATCH ()-[r]->() CALL { WITH r DELETE r } IN TRANSACTIONS OF 50000 ROWS;
+
+// Delete all nodes
+:auto MATCH (n) CALL { WITH n DETACH DELETE n } IN TRANSACTIONS OF 50000 ROWS;",0,,false
+restart graph,,CALL gds.graph.drop('tracksGraph');,1,,false
+load data,,"LOAD CSV WITH HEADERS FROM 'file:///random_2000_regina_strokes.csv' AS row
+CREATE (:Track {
+    track_name: row.track_name,
+    artists: row.artists,
+    speechiness: toFloat(row.speechiness),
+    acousticness: toFloat(row.acousticness),
+    loudness: toFloat(row.loudness),
+    energy: toFloat(row.energy),
+    danceability: toFloat(row.danceability)
+});",2,,false
+normalize,,"MATCH (t:Track)
+SET 
+  t.norm_loudness = (t.loudness + 60) / 60;",3,,false
+make graph project,,"CALL gds.graph.project(
+  'tracksGraph',
+  'Track',
+  '*',
+  {
+    nodeProperties: ['speechiness', 'acousticness', 'norm_loudness', 'energy', 'danceability']
+  }
+);",4,,false
+makes knn,,"CALL gds.knn.write('tracksGraph', {
+  nodeProperties: ['speechiness', 'acousticness', 'norm_loudness', 'energy', 'danceability'],
+  topK: 20,
+  similarityCutoff: 0.9,
+  writerelationshipType: 'SIMILAR',
+  writeProperty: 'score'
+});",5,,false
+make recs,,"WITH ['Regina Spektor', 'The Strokes'] AS artists
+
+// Step 1: find top 5 rec nodes
+MATCH (t:Track)
+WHERE t.artists IN artists
+
+MATCH (t)-[:SIMILAR]->(rec:Track)
+WHERE NOT rec.artists IN artists
+
+WITH artists, rec, count(*) AS score
+ORDER BY score DESC
+LIMIT 5
+
+// Step 2: recompute scores ONLY from those nodes
+WITH artists, collect(rec) AS topRecs
+
+MATCH (t:Track)
+WHERE t.artists IN artists
+
+MATCH (t)-[:SIMILAR]->(rec)
+WHERE rec IN topRecs
+
+RETURN rec.track_name, rec.artists, count(*) AS score
+ORDER BY score DESC;",6,,false
+recs visualization,,"WITH ['Regina Spektor', 'The Strokes'] AS artists
+
+MATCH (t:Track)
+WHERE t.artists IN artists
+
+MATCH (t)-[:SIMILAR]->(rec:Track)
+WHERE NOT rec.artists IN artists
+
+WITH artists, rec, count(*) AS score
+ORDER BY score DESC
+LIMIT 5
+
+// collect the exact nodes
+WITH artists, collect(rec) AS topRecs
+
+// Step 2: ONLY use those nodes
+MATCH (t:Track)
+WHERE t.artists IN artists
+
+MATCH (t)-[r:SIMILAR]->(rec)
+WHERE rec IN topRecs
+
+RETURN t, r, rec;",7,,false
